@@ -102,4 +102,6 @@ def clean_database():
         session.close()
 
 if __name__ == "__main__":
+    # Run tests
     test_database_operations()
+    

@@ -175,3 +175,4 @@ def handle_transaction_management():
 # Entry point - this runs when the script is executed directly
 if __name__ == "__main__":
     main()
+    

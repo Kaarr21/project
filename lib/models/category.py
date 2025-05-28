@@ -1,4 +1,4 @@
- lib/models/category.py
+# lib/models/category.py
 from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from . import Base, get_session
@@ -107,3 +107,4 @@ class Category(Base):
             raise e
         finally:
             session.close()
+            
