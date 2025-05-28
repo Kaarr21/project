@@ -91,23 +91,24 @@ class User(Base):
         """Get all users with their related data properly loaded"""
         session = get_session()
         try:
-            # Eagerly load relationships to avoid lazy loading issues
-            from sqlalchemy.orm import joinedload
-            users = session.query(cls).options(
-                joinedload(cls.categories),
-                joinedload(cls.transactions)
-            ).all()
+            # Get all users with proper data access while session is active
+            users = session.query(cls).all()
             
-            # Create a list of user data dictionaries to avoid session issues
+            # Create a list of user data dictionaries with all data accessed in session
             user_data = []
             for user in users:
+                # Access all needed data while session is active
+                categories_count = len(user.categories) if user.categories else 0
+                transactions_count = len(user.transactions) if user.transactions else 0
+                balance = sum(t.amount for t in user.transactions) if user.transactions else 0.0
+                
                 user_info = {
                     'id': user.id,
                     'name': user.name,
-                    'email': user.email,
-                    'categories_count': len(user.categories),
-                    'transactions_count': len(user.transactions),
-                    'balance': sum(t.amount for t in user.transactions) if user.transactions else 0.0
+                    'email': user.email,  # This was the bug - accessing after session close
+                    'categories_count': categories_count,
+                    'transactions_count': transactions_count,
+                    'balance': balance
                 }
                 user_data.append(user_info)
             
@@ -120,7 +121,16 @@ class User(Base):
         """Find user by ID"""
         session = get_session()
         try:
-            return session.query(cls).filter_by(id=user_id).first()
+            user = session.query(cls).filter_by(id=user_id).first()
+            if user:
+                # Create a detached instance with all data loaded
+                detached_user = cls()
+                detached_user.id = user.id
+                detached_user.name = user.name
+                detached_user.email = user.email
+                detached_user.created_at = user.created_at
+                return detached_user
+            return None
         finally:
             session.close()
     
@@ -129,7 +139,16 @@ class User(Base):
         """Find user by email"""
         session = get_session()
         try:
-            return session.query(cls).filter_by(email=email).first()
+            user = session.query(cls).filter_by(email=email).first()
+            if user:
+                # Create a detached instance with all data loaded
+                detached_user = cls()
+                detached_user.id = user.id
+                detached_user.name = user.name
+                detached_user.email = user.email
+                detached_user.created_at = user.created_at
+                return detached_user
+            return None
         finally:
             session.close()
     
