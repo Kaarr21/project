@@ -33,20 +33,24 @@ class User(Base):
     @property
     def total_income(self):
         """Calculate total income across all transactions"""
+        # Use a fresh session to avoid lazy loading issues
         session = get_session()
         try:
-            total = sum(t.amount for t in self.transactions if t.amount > 0)
-            return total or 0.0
+            from .transaction import Transaction
+            total = session.query(Transaction).filter_by(user_id=self.id).filter(Transaction.amount > 0).all()
+            return sum(t.amount for t in total) or 0.0
         finally:
             session.close()
     
     @property
     def total_expenses(self):
         """Calculate total expenses across all transactions"""
+        # Use a fresh session to avoid lazy loading issues
         session = get_session()
         try:
-            total = sum(abs(t.amount) for t in self.transactions if t.amount < 0)
-            return total or 0.0
+            from .transaction import Transaction
+            expenses = session.query(Transaction).filter_by(user_id=self.id).filter(Transaction.amount < 0).all()
+            return sum(abs(t.amount) for t in expenses) or 0.0
         finally:
             session.close()
     
@@ -84,10 +88,30 @@ class User(Base):
     
     @classmethod
     def get_all(cls):
-        """Get all users"""
+        """Get all users with their related data properly loaded"""
         session = get_session()
         try:
-            return session.query(cls).all()
+            # Eagerly load relationships to avoid lazy loading issues
+            from sqlalchemy.orm import joinedload
+            users = session.query(cls).options(
+                joinedload(cls.categories),
+                joinedload(cls.transactions)
+            ).all()
+            
+            # Create a list of user data dictionaries to avoid session issues
+            user_data = []
+            for user in users:
+                user_info = {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email,
+                    'categories_count': len(user.categories),
+                    'transactions_count': len(user.transactions),
+                    'balance': sum(t.amount for t in user.transactions) if user.transactions else 0.0
+                }
+                user_data.append(user_info)
+            
+            return user_data
         finally:
             session.close()
     
@@ -113,10 +137,13 @@ class User(Base):
         """Delete this user"""
         session = get_session()
         try:
-            # The cascade="all, delete-orphan" will automatically delete
-            # related categories and transactions
-            session.delete(self)
-            session.commit()
+            # Get the user from the current session to avoid detached instance issues
+            user_to_delete = session.query(User).filter_by(id=self.id).first()
+            if user_to_delete:
+                # The cascade="all, delete-orphan" will automatically delete
+                # related categories and transactions
+                session.delete(user_to_delete)
+                session.commit()
         except Exception as e:
             session.rollback()
             raise e

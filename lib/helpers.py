@@ -90,14 +90,14 @@ def display_all_users():
     """Display all users in the system"""
     print("\n=== All Users ===")
     try:
-        users = User.get_all()
-        if not users:
+        users_data = User.get_all()
+        if not users_data:
             print("No users found.")
             return
         
-        for user in users:
-            print(f"ID: {user.id} | Name: {user.name} | Email: {user.email}")
-            print(f"  Balance: ${user.balance:.2f} | Categories: {len(user.categories)} | Transactions: {len(user.transactions)}")
+        for user_info in users_data:
+            print(f"ID: {user_info['id']} | Name: {user_info['name']} | Email: {user_info['email']}")
+            print(f"  Balance: ${user_info['balance']:.2f} | Categories: {user_info['categories_count']} | Transactions: {user_info['transactions_count']}")
             print("-" * 50)
     except Exception as e:
         print(f"❌ Error retrieving users: {e}")
@@ -486,14 +486,20 @@ def view_financial_summary():
     
     try:
         # Overall summary
-        print(f"💰 Total Income: ${current_user.total_income:.2f}")
-        print(f"💸 Total Expenses: ${current_user.total_expenses:.2f}")
-        print(f"💵 Net Balance: ${current_user.balance:.2f}")
-        print(f"📁 Categories: {len(current_user.categories)}")
-        print(f"📊 Transactions: {len(current_user.transactions)}")
+        balance = current_user.balance
+        total_income = current_user.total_income
+        total_expenses = current_user.total_expenses
+        
+        categories = Category.find_by_user(current_user.id)
+        transactions = Transaction.find_by_user(current_user.id)
+        
+        print(f"💰 Total Income: ${total_income:.2f}")
+        print(f"💸 Total Expenses: ${total_expenses:.2f}")
+        print(f"💵 Net Balance: ${balance:.2f}")
+        print(f"📁 Categories: {len(categories)}")
+        print(f"📊 Transactions: {len(transactions)}")
         
         # Category breakdown
-        categories = Category.find_by_user(current_user.id)
         if categories:
             print(f"\n📋 CATEGORY BREAKDOWN:")
             print("-" * 50)
@@ -520,3 +526,4 @@ def view_financial_summary():
         
     except Exception as e:
         print(f"❌ Error generating financial summary: {e}")
+        
